@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>나만의 홈</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(160deg, #7DD3FC 0%, #BAE6FD 45%, #E0F2FE 100%);
+    font-family: -apple-system, 'Malgun Gothic', sans-serif;
+    padding: 28px 20px;
+  }
+  .wrap { max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  .memo {
+    background: #FEFCE8;
+    border: 1px solid #FDE68A;
+    border-radius: 14px;
+    padding: 22px 24px;
+    box-shadow: 3px 4px 0px #FCD34D;
+  }
+  .label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+    color: #B45309; margin-bottom: 12px; text-transform: uppercase;
+  }
+  .time-big { font-size: 40px; font-weight: 700; color: #1C1917; letter-spacing: -1px; line-height: 1.1; }
+  .date-str { font-size: 14px; color: #78716C; margin-top: 6px; }
+  .weather-row { display: flex; align-items: center; gap: 14px; }
+  .weather-icon { font-size: 46px; }
+  .weather-temp { font-size: 34px; font-weight: 700; color: #1C1917; }
+  .weather-label { font-size: 15px; color: #78716C; }
+  .weather-sub { margin-top: 14px; display: flex; gap: 20px; font-size: 13px; color: #92400E; }
+  .news-item { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px dashed #FCD34D; }
+  .news-item:last-child { padding-bottom: 0; margin-bottom: 0; border-bottom: none; }
+  .news-meta { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+  .tag { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 20px; }
+  .news-src { font-size: 11px; color: #A8A29E; }
+  .news-title { font-size: 14px; font-weight: 700; color: #1C1917; margin-bottom: 4px; line-height: 1.45; }
+  .news-summary { font-size: 13px; color: #78716C; line-height: 1.65; }
+  .todo-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .todo-input-row input {
+    flex: 1; padding: 7px 11px; border-radius: 8px;
+    border: 1px solid #FDE68A; font-size: 13px; outline: none;
+    background: #FFFBEB; color: #1C1917; font-family: inherit;
+  }
+  .todo-input-row button {
+    padding: 7px 16px; border-radius: 8px; background: #F59E0B;
+    color: #fff; border: none; cursor: pointer; font-size: 14px; font-weight: 700;
+  }
+  .todo-item { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+  .todo-item input[type=checkbox] { accent-color: #F59E0B; cursor: pointer; width: 16px; height: 16px; }
+  .todo-text { flex: 1; font-size: 14px; color: #44403C; }
+  .todo-text.done { color: #C4B5A0; text-decoration: line-through; }
+  .del-btn { background: none; border: none; color: #CCC; cursor: pointer; font-size: 18px; line-height: 1; }
+  .footer { text-align: center; font-size: 11px; color: #7DD3FC; }
+  .muted { color: #B45309; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 시계 -->
+  <div class="memo">
+    <div class="label">🕐 시계 / 날짜</div>
+    <div class="time-big" id="clock">--:--:--</div>
+    <div class="date-str" id="dateStr"></div>
+  </div>
+
+  <!-- 날씨 -->
+  <div class="memo">
+    <div class="label">🌤 오늘의 날씨 · 성남시</div>
+    <div id="weather-content"><div class="muted">불러오는 중...</div></div>
+  </div>
+
+  <!-- 코인 뉴스 -->
+  <div class="memo">
+    <div class="label">📰 코인 주요 뉴스</div>
+    <div id="news-content"><div class="muted">₿ 뉴스 불러오는 중...</div></div>
+  </div>
+
+  <!-- 할 일 -->
+  <div class="memo">
+    <div class="label">✅ 할 일 목록</div>
+    <div class="todo-input-row">
+      <input type="text" id="todoInput" placeholder="새 항목 입력 후 Enter..." />
+      <button onclick="addTodo()">+</button>
+    </div>
+    <div id="todoList"></div>
+  </div>
+
+  <div class="footer">Weather by Open-Meteo · News by CryptoPanic</div>
+</div>
+
+<script>
+// ── 시계 ──────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('dateStr').textContent =
+    now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── 날씨 (Open-Meteo, 무료·CORS 허용) ──────────────
+const W_CODES = {
+  0: ['맑음','☀️'], 1: ['구름 조금','🌤️'], 2: ['구름 많음','⛅'], 3: ['흐림','☁️'],
+  45: ['안개','🌫️'], 48: ['안개','🌫️'],
+  51: ['이슬비','🌦️'], 61: ['비','🌧️'], 71: ['눈','❄️'],
+  80: ['소나기','🌩️'], 95: ['뇌우','⛈️']
+};
+function wDesc(code) {
+  for (const k of Object.keys(W_CODES).map(Number).sort((a,b)=>b-a)) {
+    if (code >= k) return W_CODES[k];
+  }
+  return ['알 수 없음','🌡️'];
+}
+fetch('https://wttr.in/Seongnam?format=j1')
+  .then(r => r.json())
+  .then(d => {
+    const c = d.current_condition[0];
+    const code = parseInt(c.weatherCode);
+    const [label, icon] = wDesc(code);
+    const temp = c.temp_C;
+    const humidity = c.humidity;
+    const wind = c.windspeedKmph;
+    const feel = c.FeelsLikeC;
+    document.getElementById('weather-content').innerHTML = `
+      <div class="weather-row">
+        <span class="weather-icon">${icon}</span>
+        <div>
+          <div class="weather-temp">${temp}°C</div>
+          <div class="weather-label">${label} · 체감 ${feel}°C</div>
+        </div>
+      </div>
+      <div class="weather-sub">
+        <span>💧 습도 <b>${humidity}%</b></span>
+        <span>💨 풍속 <b>${wind} km/h</b></span>
+      </div>`;
+  })
+  .catch(() => {
+    document.getElementById('weather-content').innerHTML = '<div class="muted">날씨 정보를 불러오지 못했습니다.</div>';
+  });
+
+// ── 코인 뉴스 (CoinDesk RSS → rss2json 무료 변환) ──
+const RSS = 'https://www.coindesk.com/arc/outboundfeeds/rss/';
+const PROXY = 'https://api.allorigins.win/get?url=' + encodeURIComponent(RSS);
+
+fetch(PROXY)
+  .then(r => r.json())
+  .then(d => {
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(d.contents, 'text/xml');
+    const items = Array.from(xml.querySelectorAll('item')).slice(0, 5);
+    if (!items.length) throw new Error();
+    document.getElementById('news-content').innerHTML = items.map((item, i) => {
+      const title = item.querySelector('title')?.textContent || '';
+      const link  = item.querySelector('link')?.textContent || '#';
+      const cats  = Array.from(item.querySelectorAll('category')).map(c => c.textContent.toLowerCase());
+      const pubRaw = item.querySelector('pubDate')?.textContent || '';
+      const pub = pubRaw ? new Date(pubRaw).toLocaleDateString('ko-KR', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
+      let tag = '시장', tagStyle = 'background:#EDE9FE;color:#5B21B6';
+      if (cats.some(c => /bitcoin|btc/.test(c)))           { tag = 'BTC';    tagStyle = 'background:#FEF3C7;color:#92400E'; }
+      else if (cats.some(c => /ethereum|eth/.test(c)))     { tag = 'ETH';    tagStyle = 'background:#DBEAFE;color:#1E40AF'; }
+      else if (cats.some(c => /regulat|policy|법/.test(c))){ tag = '규제';   tagStyle = 'background:#FEE2E2;color:#991B1B'; }
+      else if (cats.some(c => /altcoin|solana|xrp|defi/.test(c))){ tag = '알트코인'; tagStyle = 'background:#D1FAE5;color:#065F46'; }
+      const isLast = i === items.length - 1;
+      return `<div class="news-item"${isLast ? ' style="border:none;margin:0;padding:0"' : ''}>
+        <div class="news-meta">
+          <span class="tag" style="${tagStyle}">${tag}</span>
+          <span class="news-src">CoinDesk · ${pub}</span>
+        </div>
+        <div class="news-title"><a href="${link}" target="_blank" style="color:#1C1917;text-decoration:none;">${title}</a></div>
+      </div>`;
+    }).join('');
+  })
+  .catch(() => {
+    document.getElementById('news-content').innerHTML = '<div class="muted">뉴스를 불러오지 못했습니다.<br><small>잠시 후 새로고침 해주세요.</small></div>';
+  });
+
+// ── 할 일 목록 ────────────────────────────────────
+let todos = JSON.parse(localStorage.getItem('todos') || '[{"id":1,"text":"비트코인 시세 확인","done":false},{"id":2,"text":"포트폴리오 리밸런싱","done":false}]');
+function saveTodos() { localStorage.setItem('todos', JSON.stringify(todos)); }
+function renderTodos() {
+  const el = document.getElementById('todoList');
+  if (!todos.length) { el.innerHTML = '<div style="font-size:13px;color:#C4B5A0">할 일이 없습니다 🎉</div>'; return; }
+  el.innerHTML = todos.map(t => `
+    <div class="todo-item">
+      <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleTodo(${t.id})" />
+      <span class="todo-text ${t.done ? 'done' : ''}">${t.text}</span>
+      <button class="del-btn" onclick="deleteTodo(${t.id})">×</button>
+    </div>`).join('');
+}
+function addTodo() {
+  const inp = document.getElementById('todoInput');
+  if (!inp.value.trim()) return;
+  todos.push({ id: Date.now(), text: inp.value.trim(), done: false });
+  inp.value = ''; saveTodos(); renderTodos();
+}
+function toggleTodo(id) { todos = todos.map(t => t.id === id ? {...t, done: !t.done} : t); saveTodos(); renderTodos(); }
+function deleteTodo(id) { todos = todos.filter(t => t.id !== id); saveTodos(); renderTodos(); }
+document.getElementById('todoInput').addEventListener('keydown', e => e.key === 'Enter' && addTodo());
+renderTodos();
+</script>
+</body>
+</html>
